@@ -40,10 +40,11 @@ Compilation is simple, grab the sources and:
 
 First, install the provided BLOBs. They have been packaged in the "blobs" directory of the repository.
 
-go to:
+Go to:
 
-cd /
-tar xzvf <root_of_git_repo>/blobs/cedarx_blobs.tar.gz
+	cd /
+	tar xzvf [root_of_git_repo]/blobs/cedarx_blobs.tar.gz
+
 
 Now, you need to config the ".so" libraries, adding:
 
