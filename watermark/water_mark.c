@@ -4,7 +4,7 @@ extern "C" {
 
 #define LOG_NDEBUG 0
 #define LOG_TAG "venc-file"
-#include "CDX_Debug.h"
+#include "aw/CDX_Debug.h"
 
 
 #include <stdio.h>

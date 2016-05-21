@@ -350,7 +350,7 @@ int CameraSourceCallback(void *cookie,  void *data)
 	//LOGD("Cam - p_buf->index = %d\n", p_buf->index);
 	
 	unsigned char *buffer = (unsigned char *)p_v4l2_mem_map->mem[p_buf->index];
-	int size_y = venc_cam_cxt->base_cfg.nInputWidth*venc_cam_cxt->base_cfg.nInputHeight;
+	//int size_y = venc_cam_cxt->base_cfg.nInputWidth*venc_cam_cxt->base_cfg.nInputHeight;
 
 	memset(&input_buffer, 0, sizeof(VencInputBuffer));
 	result = GetOneAllocInputBuffer(pVideoEnc, &input_buffer);
@@ -595,7 +595,7 @@ int main( int argc, char **argv )
 	  int  w,h,fmt;
           getV4L2FormatAndSize(venc_cxt->CameraDevice, &w, &h, &fmt );
 	  printf("Camera: Width=%d, Height=%d, Pix_Fmt=%d\n", w,h,fmt );
-	  if( w != mwidth || h != mheight )
+	  if( w != (int)mwidth || h != (int)mheight )
 	  {
 	      printf("Camera size mismatch !\n");
 	      goto fail_out;
