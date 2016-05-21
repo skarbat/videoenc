@@ -26,7 +26,7 @@ AR = ar
 TARGET=videoenc
 BUILDPATH=.
 
-SRCDIRS:=.
+SRCDIRS:=. Camera watermark
 
 CFLAGS =-Wall -O3 -ldl -pthread -std=c++11
 

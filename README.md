@@ -70,19 +70,18 @@ NOTE: at this stage, no "install" target, but maybe added later.
 Testing the Encoder Demo
 =======================
 
-Please, download a YUV file as a test point:
+Make sure you have a V4L2 source, such as "/dev/video0"
 
-	wget http://trace.eas.asu.edu/yuv/paris/paris_cif.7z
-   	# Need to touch, since the Encoder does not create files ( for now )
-   	touch out1.h264
-   	7z e paris_cif.7z
-   	./videoenc -i paris_cif.yuv -k 3 -r 25 -b 1024 -s 352x288 -o ./out1.h264
+  touch ./out1.h264
+  ./videoenc -i /dev/video0 -k 3 -r 25 -b 1024 -s 640x480 -o ./out1.h264
 
 This should get an output file "out1.h264" with the H.264 stream, which could be played on any player as long as it takes "h264" streams as input, for example ffplay or vlc.
 
 If you got this far and it works, that is it!!!!! Congratulations!
 
 The following is just groove!!!!!
+
+This is the most common use case, where you have a V4l2 source, such as a Web Camera!
 
 
 Testing with FFMPEG ( avconv )
@@ -104,11 +103,12 @@ Compile FFMPEG from sources:
 A common use case of the encoder demo is to use "ffmpeg" to convert the input source to the required format ( yuv420p ),
 including v4l2 based cameras. Example scripts are presented for that.
 
-	Source --> FFMPEG -->( yuv420p ) --> videoenc --> H264 stream -->  FFMPEG  -->  MP4File ( or any other format ).
+  Source --> FFMPEG -->( yuv420p ) --> videoenc --> H264 stream -->  FFMPEG  -->  MP4File ( or any other format ).
 
 To aid test, I've added a few scripts that helps with test of a Web Camera.
 
 start_stream.sh - this script uses FFMPEG to read a vl42 source ( web camera ), and converts its raw format to "yuv420p" which would be consumed by the encoder.
+                  NOTE: Added to this script the capability to take as input a V4L2 source.
 
 record_video.sh -- this script reads the output of the H264 stream, and mux it as a MP4 file for 30 seconds.
 
@@ -145,11 +145,9 @@ Step 3: go to another shell, and:
 
    ./record_video.sh
 
-
 this should create a "mp4" video file ( /tmp/result.mp4 ), with a video stream of 30 seconds duration.
 
     /tmp/result.mp4
-
 
 Step 4: Copy it to some machine with a player, like ffplay or VLC and enjoy!
 
@@ -158,4 +156,3 @@ Feedback
 ========
 
 The project is at early state, but I am releasing as soon as possible to get feedback.
-
