@@ -35,9 +35,8 @@ License
 
 All source is licensed under GPLv3, except the source released as demo by Allwinner.
 
-All code in the following folders: "aw", "Camera" and "watermark" have been released by AW as part of their demos,
-and follow whatever Allwinner license is.
-
+All code in the following folders: "aw", "Camera", blobs and "watermark" have been released by AW as part of their demos,
+and they follow whatever Allwinner's license is.
 
 Compiling the Encoder
 =====================
@@ -129,6 +128,8 @@ Example with a Web Camera
 
 Assuming the camera is "/dev/video0"
 
+NOTE: Current mode in "start_encoder.sh" script is to use the V4L2 mode. 
+
 Step 1: Check the input format and sizes provided:
 
      ffmpeg -f v4l2 -list_formats all -i /dev/video0
@@ -141,16 +142,13 @@ The command above should provided something like:
 
 So, let's pick "yuyv422" as input format and size 640x480.
 
-The "start_script.sh" is set for this.... please edit as needed.
-
+The "start_encoder.sh" is set for this.... please edit as needed.
 
 Step 2: now, open a terminal shell and:
 
      ./start_encoder.sh
 
-
 Step 3: go to another shell, and:
-
 
    ./record_video.sh
 
