@@ -30,6 +30,15 @@ The link below has some files as raw YUV, which can be downloaded for test:
       http://trace.eas.asu.edu/yuv/
 
 
+License
+=======
+
+All source is licensed under GPLv3, except the source released as demo by Allwinner.
+
+All code in the following folders: "aw", "Camera" and "watermark" have been released by AW as part of their demos,
+and follow whatever Allwinner license is.
+
+
 Compiling the Encoder
 =====================
 

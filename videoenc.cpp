@@ -33,6 +33,11 @@
 #include <string>
 
 #include "aw/vencoder.h"
+
+#include "CameraSource.h"
+#include "water_mark.h"
+#include "V4L2.h"
+
 #include "out_writer.h"
 #include "cliOptions.h"
 
@@ -62,6 +67,8 @@ typedef struct Venc_context
 {
    VideoEncoder  *pVideoEnc;
    VencBaseConfig base_cfg;
+   AWCameraDevice *CameraDevice;
+   WaterMark      *waterMark;
    pthread_t thread_enc_id;
    pthread_t thread_pipe_id;
    int mstart;
@@ -73,6 +80,71 @@ typedef struct Venc_context
 SimpleFIFO< VencInputBuffer, 10> g_inFIFO;
 pthread_cond_t   g_cond( PTHREAD_COND_INITIALIZER );
 pthread_mutex_t  g_mutex( PTHREAD_MUTEX_INITIALIZER );
+
+int yu12_nv12(unsigned int width, unsigned int height, unsigned char *addr_uv, unsigned char *addr_tmp_uv)
+{
+	unsigned int i, chroma_bytes;
+	unsigned char *u_addr = NULL;
+	unsigned char *v_addr = NULL;
+	unsigned char *tmp_addr = NULL;
+
+	chroma_bytes = width*height/4;
+
+	u_addr = addr_uv;
+	v_addr = addr_uv + chroma_bytes;
+	tmp_addr = addr_tmp_uv;
+
+	for(i=0; i<chroma_bytes; i++)
+	{
+		*(tmp_addr++) = *(u_addr++);
+		*(tmp_addr++) = *(v_addr++);
+	}
+
+	memcpy(addr_uv, addr_tmp_uv, chroma_bytes*2);	
+
+	return 0;
+}
+
+/**
+ * This function has been borrowed from the v4lconvert project 
+ */
+void v4lconvert_yuyv_to_yuv420(const unsigned char *src, unsigned char *dest, unsigned char *dest_uv, int width, int height, int yvu )
+{
+  int i, j;
+  const unsigned char *src1;
+  unsigned char *udest, *vdest;
+
+  /* copy the Y values */
+  src1 = src;
+  for (i = 0; i < height; i++) {
+    for (j = 0; j < width; j += 2) {
+      *dest++ = src1[0];
+      *dest++ = src1[2];
+      src1 += 4;
+    }
+  }
+
+  /* copy the U and V values */
+  src++;/* point to V */
+  src1 = src + width * 2;/* next line */
+  if (yvu) {
+    vdest = dest_uv;
+    udest = dest_uv + width * height / 4;
+  } else {
+    udest = dest_uv;
+    vdest = dest_uv + width * height / 4;
+  }
+  for (i = 0; i < height; i += 2) {
+    for (j = 0; j < width; j += 2) {
+      *udest++ = ((int) src[0] + src1[0]) / 2;/* U */
+      *vdest++ = ((int) src[2] + src1[2]) / 2;/* V */
+      src += 4;
+      src1 += 4;
+    }
+    src = src1;
+    src1 += width * 2;
+  }
+}
 
 static int read_file_data(int fd, void *buffer, int size)
 {
@@ -247,6 +319,79 @@ void process_in_buffer(Venc_context * venc_cxt, VencInputBuffer *input_buffer ) 
 	}
 }
 
+
+
+
+
+int CameraSourceCallback(void *cookie,  void *data)
+{
+	Venc_context * venc_cam_cxt = (Venc_context *)cookie;
+	VideoEncoder     *pVideoEnc   = venc_cam_cxt->pVideoEnc;
+
+	AWCameraDevice *CameraDevice = venc_cam_cxt->CameraDevice;
+	VencInputBuffer input_buffer;
+	int result = 0;
+	struct v4l2_buffer *p_buf = (struct v4l2_buffer *)data;
+	v4l2_mem_map_t* p_v4l2_mem_map = GetMapmemAddress(getV4L2ctx(CameraDevice));
+
+	if(!venc_cam_cxt->mstart) {
+		printf("p_buf->index = %d\n", p_buf->index);
+		CameraDevice->returnFrame(CameraDevice, p_buf->index);
+		return 0;
+	}
+
+	if( p_buf->length < input_size )
+	{
+		printf("Buffer small - index = %d\n", p_buf->index);
+		CameraDevice->returnFrame(CameraDevice, p_buf->index);
+		return 0;
+	}
+	
+	//LOGD("Cam - p_buf->index = %d\n", p_buf->index);
+	
+	unsigned char *buffer = (unsigned char *)p_v4l2_mem_map->mem[p_buf->index];
+	int size_y = venc_cam_cxt->base_cfg.nInputWidth*venc_cam_cxt->base_cfg.nInputHeight;
+
+	memset(&input_buffer, 0, sizeof(VencInputBuffer));
+	result = GetOneAllocInputBuffer(pVideoEnc, &input_buffer);
+	if(result < 0) {
+		CameraDevice->returnFrame(CameraDevice, p_buf->index);
+		printf("Alloc input buffer is full , skip this frame");
+		return 0;
+	}
+
+	//LOGW("input buffer size=(%x) %d", p_buf->length, p_buf->length );
+	//input_buffer.nPts  =   1000000 * (long long)p_buf->timestamp.tv_sec + (long long)p_buf->timestamp.tv_usec;
+	//long long nPts = 1000000*(long long)p_buf->timestamp.tv_sec + (long long)p_buf->timestamp.tv_usec;
+	//nPts = 9*(nPts/10);
+	//input_buffer.nPts  = nPts;
+	if( CameraDevice->isYUYV ) {
+	  
+	    v4lconvert_yuyv_to_yuv420((const unsigned char *)buffer, (unsigned char *)input_buffer.pAddrVirY, (unsigned char *)input_buffer.pAddrVirC, mwidth, mheight, 0 );
+        }
+	else {
+	      //LOGD("Cam - convert from yuyv1 =%d\n", Y_size );
+	      memcpy( (unsigned char *)input_buffer.pAddrVirY, buffer, Y_size );
+	      //LOGD("Cam - convert from yuyv2 =%d\n", UV_size );
+	      memcpy( (unsigned char *)input_buffer.pAddrVirC, &buffer[Y_size], UV_size );
+        }  
+	CameraDevice->returnFrame(CameraDevice, p_buf->index);
+
+        pthread_mutex_lock( &g_mutex );
+        bool res = g_inFIFO.enqueue( input_buffer );
+	if( res )  pthread_cond_signal( &g_cond );
+        pthread_mutex_unlock( &g_mutex );
+	if( !res )
+	{
+	   printf("Unable to queue Buffer\n" );
+  	   ReturnOneAllocInputBuffer(pVideoEnc, &input_buffer);
+	}
+	
+	//printf( "C");
+	return 0;
+}
+
+
 static void* encoder_thread(void* pThreadData) {
 
 	Venc_context * venc_cxt = (Venc_context *)pThreadData;
@@ -379,6 +524,17 @@ int main( int argc, char **argv )
          printf("the sps_pps :%02x\n", *(sps_pps_data.pBuffer+head_num));
     }
 
+
+#ifdef WATERMARK
+	venc_cam_cxt->waterMark = (WaterMark *)malloc(sizeof(WaterMark));
+	memset(venc_cam_cxt->waterMark, 0x0, sizeof(WaterMark));
+	venc_cam_cxt->waterMark->bgInfo.width  = mwidth;
+	venc_cam_cxt->waterMark->bgInfo.height = mheight;
+	venc_cam_cxt->waterMark->srcPathPrefix = (char *)"/opt/res/icon_720p_";
+	venc_cam_cxt->waterMark->srcNum = 13;
+	waterMarkInit(venc_cam_cxt->waterMark);
+#endif
+    
     motionParam.nMotionDetectEnable = 1;
     motionParam.nMotionDetectRatio  = 1; /* 0~12, 0 is the best sensitive */
     //VideoEncSetParameter(pVideoEnc, VENC_IndexParamMotionDetectEnable, &motionParam );
@@ -409,28 +565,43 @@ int main( int argc, char **argv )
 
      printf("create encoder ok\n");
 
-     venc_cxt->mstart = 1;
+     bool cameraOn = true;
+      venc_cxt->mstart = 1;
 
      if( g_options.input == "-" )
      {
          venc_cxt->fd_in = 0;  // pipe input.
+  	 cameraOn = false;
+   	 venc_cxt->mstart = 1;
+ 	 /* create encode thread*/
+	 err = pthread_create(&venc_cxt->thread_pipe_id, NULL, file_thread, venc_cxt);
+	 if (err || !venc_cxt->thread_pipe_id) {
+		printf("Create thread_pipe_id fail !\n");
+	        goto fail_out;
+	 }
      }
      else
      {
-        if( g_options.fps )
-	{
-	   g_msDelay = 1000 / g_options.fps;
-	   g_msDelay -= 5;
-	}
-        venc_cxt->fd_in = open( g_options.input.c_str(), O_RDWR );
+	  /* create source */
+	  venc_cxt->CameraDevice = CreateCamera(mwidth, mheight);
+  	  printf("create camera ok\n");
+	  /* set camera source callback */
+   	  venc_cxt->CameraDevice->setCameraDatacallback(venc_cxt->CameraDevice, (void *)venc_cxt, (void *)&CameraSourceCallback );
+  	  // Pass Device name to Camera...
+          venc_cxt->CameraDevice->deviceName = g_options.input.c_str();
+  	  /* start camera */
+	  venc_cxt->CameraDevice->startCamera(venc_cxt->CameraDevice);
+	  printf("Camera: is YUYV = %d\n",  venc_cxt->CameraDevice->isYUYV );
+	  int  w,h,fmt;
+          getV4L2FormatAndSize(venc_cxt->CameraDevice, &w, &h, &fmt );
+	  printf("Camera: Width=%d, Height=%d, Pix_Fmt=%d\n", w,h,fmt );
+	  if( w != mwidth || h != mheight )
+	  {
+	      printf("Camera size mismatch !\n");
+	      goto fail_out;
+	  }
      }
-     
-     /* create encode thread*/
-     err = pthread_create(&venc_cxt->thread_pipe_id, NULL, file_thread, venc_cxt);
-     if (err || !venc_cxt->thread_pipe_id) {
-	printf("Create thread_pipe_id fail !\n");
-	goto fail_out;
-     }
+
      /* start encoder */
      venc_cxt->mstart = 1;
      /* create encode thread*/
@@ -444,7 +615,9 @@ int main( int argc, char **argv )
      sigact.sa_handler = handle_int;
      while( !quit && venc_cxt->mstart )
      {
-	sleep( 1 );
+        if( cameraOn && !venc_cxt->CameraDevice->getState( venc_cxt->CameraDevice ) )
+	    break;
+  	sleep( 1 );
      }
      pthread_mutex_lock( &g_mutex );
      pthread_cond_signal( &g_cond );
@@ -456,6 +629,17 @@ int main( int argc, char **argv )
         pthread_join(venc_cxt->thread_enc_id,NULL);
      }
 fail_out:
+     /* stop camera */
+     //venc_cxt->CameraDevice->stopCamera(venc_cxt->CameraDevice);
+     //DestroyCamera(venc_cxt->CameraDevice);
+     venc_cxt->CameraDevice = NULL;
+
+#ifdef WATERMARK
+	waterMarkExit(venc_cxt->waterMark);
+	free(venc_cxt->waterMark);
+	venc_cxt->waterMark = NULL;
+#endif
+     
      ReleaseAllocInputBuffer(pVideoEnc);
      VideoEncUnInit(pVideoEnc);
      VideoEncDestroy(pVideoEnc);
