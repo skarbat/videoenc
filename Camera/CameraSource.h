@@ -4,6 +4,8 @@ extern "C" {
 
 #include "camera.h"
 
+#include "Camera/V4L2.h"
+  
 typedef int (*CameraDataCallback)(void *cookie,  void *data);
 
 typedef struct CameraDataCallbackType{

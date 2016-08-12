@@ -20,7 +20,7 @@ typedef struct v4l2_mem_map_t{
 void *CreateV4l2Context();
 void DestroyV4l2Context(void* v4l2ctx);
 
-int setV4L2DeviceName(void* v4l2ctx, char * pname); // set device node name, such as "/dev/video0"
+int setV4L2DeviceName(void* v4l2ctx, const char * pname); // set device node name, such as "/dev/video0"
 int setV4L2DeviceID(void* v4l2ctx, int device_id); // set different device id on the same CSI
 int openCameraDevice(void* v4l2ctx); // open camera device
 void closeCameraDevice(void* v4l2ctx); //close camera device

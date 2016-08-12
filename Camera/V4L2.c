@@ -5,6 +5,10 @@ extern "C" {
 #define LOG_NDEBUG 0
 #define LOG_TAG "V4L2"
 #include <memory.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 #include "aw/CDX_Debug.h"
 
 #include <fcntl.h> 
@@ -63,7 +67,7 @@ void DestroyV4l2Context(void* v4l2ctx)
 
 
 // set device node name, such as "/dev/video0"
-int setV4L2DeviceName(void* v4l2ctx, char * pname)
+int setV4L2DeviceName(void* v4l2ctx, const char * pname)
 {
 	V4L2_CONTEXT *V4L2_Contect = (V4L2_CONTEXT*)v4l2ctx;
 	if(pname == NULL)
