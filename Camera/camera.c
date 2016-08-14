@@ -2,6 +2,9 @@
 #define LOG_TAG "Camera"
 #include "aw/CDX_Debug.h"
 
+#include <stdio.h>
+#include <memory.h>
+
 #include "V4L2.h"
 #include "camera.h"
 
@@ -66,9 +69,13 @@ void CloseCamera(void* v4l2ctx)
 
 int StartCamera(void* v4l2ctx, int *width, int *height)
 {
-	int ret = 0;
-	//	int pix_fmt = V4L2_PIX_FMT_NV12;
-	int pix_fmt = V4L2_PIX_FMT_YUYV;
+	// int pix_fmt = V4L2_PIX_FMT_NV12;
+	// int pix_fmt = V4L2_PIX_FMT_YUYV;
+
+	// Pixel format that should work with direct CSI interface camera
+	// https://bananapi.gitbooks.io/bpi-accessories/content/zh/bpi-m2+camera.html
+	int pix_fmt = V4L2_PIX_FMT_YUV420;
+
 	int mframerate = 30;
 	int mbuffernuber = BUFFER_NUMBER;
 
