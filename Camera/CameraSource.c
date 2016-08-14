@@ -6,6 +6,7 @@ extern "C" {
 #define LOG_TAG "CameraSource"
 #include <aw/CDX_Debug.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -52,7 +53,6 @@ static void* CameraThread(void* pThreadData) {
 
 	AWCameraDevice* camera_dev = (AWCameraDevice *)(pThreadData);
 	AWCameraContext* CameraCtx = NULL;
-	int err = 0;
 	struct v4l2_buffer buf;
 	
 	CameraCtx = (AWCameraContext*)(camera_dev->context);
@@ -169,7 +169,6 @@ static int returnFrame(AWCameraDevice *p, int id)
 {
 	AWCameraDevice* camera_dev = (AWCameraDevice *)(p);
 	AWCameraContext* CameraCtx = NULL;
-	int err = 0;
 	
 	if(!camera_dev)
 		return -1;
@@ -185,7 +184,6 @@ int  setCameraDatacallback(struct AWCameraDevice *p, void *cookie, void *callbac
 {
 	AWCameraDevice* camera_dev = (AWCameraDevice *)(p);
 	AWCameraContext* CameraCtx = NULL;
-	int err = 0;
 	LOGD("set call back22");
 
 	if(!camera_dev)
@@ -195,7 +193,7 @@ int  setCameraDatacallback(struct AWCameraDevice *p, void *cookie, void *callbac
 
 	CameraCtx->callback.cookie = cookie;
 	CameraCtx->callback.callback = callback;
-	LOGD("CameraCtx->callback.cookie: %x", CameraCtx->callback.cookie);
+	LOGD("CameraCtx->callback.cookie: %p", CameraCtx->callback.cookie);
 	return 0;
 }
 
@@ -257,8 +255,7 @@ void DestroyCamera(AWCameraDevice* camera)
 		return;
 
 	if(camera->context) {
-		AWCameraContext* CameraCtx = (AWCameraContext*)(camera->context);
-		
+	        CameraCtx = (AWCameraContext*)(camera->context);
 		pthread_mutex_destroy(&CameraCtx->lock);
 		free(camera->context);
 		camera->context = NULL;

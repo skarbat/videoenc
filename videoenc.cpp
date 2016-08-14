@@ -167,7 +167,7 @@ static void* file_thread(void* pThreadData) {
         int fdIn = venc_cxt->fd_in;
 	VencInputBuffer input_buffer;
         printf("FD IN = %d\n", fdIn );
- 
+
 	while(venc_cxt->mstart)
 	{
 	   int result = GetOneAllocInputBuffer( pVideoEnc, &input_buffer );
@@ -398,13 +398,31 @@ static void* encoder_thread(void* pThreadData) {
 	printf("encoder thread running....\n");
 
         VencInputBuffer input_buffer;
-	
+
+	time_t tlast, tcurrent;
+	int framecount=0, totalframes=0;
+ 
         // Make sure a motion is set at startup....
         set_motion_flag();
 	bool doBuffer = false;
+
+	time(&tlast);
+	time(&tcurrent);
+	
 	while(venc_cxt->mstart)
 	{
-              doBuffer = false;
+	  totalframes++;
+	  time (&tcurrent);
+	  if ((tcurrent-tlast) > 1) {
+	    printf ("frames/sec: %d\n", framecount);
+	    tlast=tcurrent;
+	    framecount=0;
+	  }
+	  else {
+	    framecount++;
+	  }
+
+	  doBuffer = false;
               pthread_mutex_lock( &g_mutex );
               if( !g_inFIFO.count() )
 	      {
